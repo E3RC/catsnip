@@ -45,13 +45,16 @@ Build and deploy CatSnip volunteer SMS broadcast system on user's Optiplex with 
 - Using cloudflared tunnel with `catsnip.2hostyou.net` (not .com)
 - Using sql.js instead of better-sqlite3 to avoid native compilation
 - `.env` kept out of git repo via `.gitignore`; credentials not exposed
-- Using nodemailer with sendmail transport (no SMTP config needed); SMTP_HOST env vars optional for relay
+- Using Brevo SMTP (smtp-relay.brevo.com:587) as email provider — no sendmail on Optiplex
 - Report scheduling off by default; enable via `REPORT_SCHEDULE_ENABLED=true` in .env
 - First admin number `+15743708318` (Brent) seeded into `admin_phones` table on deploy
 
 ## Next Steps
-- Test report sending via Settings "Send Test" button (requires working sendmail on Optiplex)
-- Configure SMTP in `.env` if sendmail is not available
+- **On Optiplex:** Add Brevo SMTP credentials to `~/catsnip/.env` (SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM)
+  - Get SMTP login + SMTP key at https://app.brevo.com/settings/keys/smtp (NOT the API key)
+  - Verify sender domain in Brevo (add SPF/DKIM records for catsnip.2hostyou.net)
+  - Restart service: `sudo systemctl restart catsnip`
+- Test report sending via Settings "Send Test" button
 - Enable scheduled delivery via `REPORT_SCHEDULE_ENABLED=true` when ready
 - Test admin SMS broadcast from non-Brent numbers after adding via Settings UI
 - Test full flow: admin texts number → broadcast sent → volunteers receive SMS → replies appear in feed
@@ -64,7 +67,9 @@ Build and deploy CatSnip volunteer SMS broadcast system on user's Optiplex with 
 - Admin phone `+15743708318` is seeded in DB as "Brent"
 - Vonage API returns 200 on form-encoded POST to webhook; `req.body.Body` and `req.body.msisdn` for Vonage format
 - The `$` in the Vonage secret requires escaping in shell/PowerShell
-- Report email uses nodemailer — sendmail transport by default, SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/SMTP_FROM env vars for relay
+- Report email uses nodemailer — Brevo SMTP relay (smtp-relay.brevo.com:587) via SMTP_HOST/SMTP_USER/SMTP_PASS/SMTP_FROM env vars
+- Brevo SMTP credentials (login + key) generated at https://app.brevo.com/settings/keys/smtp — do NOT use API key
+- Sender domain should be verified in Brevo (add SPF/DKIM for catsnip.2hostyou.net)
 - Daily report scheduled send: set `REPORT_SCHEDULE_ENABLED=true` + optional `REPORT_SEND_TIME` (default 17:00)
 
 ## Relevant Files
