@@ -100,6 +100,7 @@ async function initDb() {
   const sessions = new Map();
   const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
   const ADMIN_PASS = (process.env.ADMIN_PASSWORD || '').trim();
+  const ADMIN_PHONE = (process.env.ADMIN_PHONE || '').trim();
 
   function requireAuth(req, res, next) {
     if (req.path === '/login' || req.path === '/incoming-sms') return next();
@@ -286,6 +287,26 @@ async function initDb() {
     }
 
     const bodyTrim = text.trim();
+
+    if (ADMIN_PHONE && fromClean === ADMIN_PHONE) {
+      const ids = dbAll('SELECT id, phone FROM volunteers WHERE status = ?', ['active']).map(v => v.id);
+      if (ids.length > 0) {
+        const msgResult = dbRun('INSERT INTO messages (body, recipient_count) VALUES (?, ?)', [bodyTrim, ids.length]);
+        const messageId = msgResult.lastInsertRowid;
+        for (const vid of ids) {
+          db.run('INSERT INTO deliveries (message_id, volunteer_id) VALUES (?, ?)', [messageId, vid]);
+        }
+        persistDb();
+        const volRows = ids.map(id => dbGet('SELECT id, phone FROM volunteers WHERE id = ?', [id])).filter(Boolean);
+        for (const v of volRows) {
+          sendSms(v.phone, bodyTrim, messageId, v.id).catch(() => {});
+        }
+      }
+      db.run('INSERT INTO responses (message_id, volunteer_id, body) VALUES (?, ?, ?)', [null, volunteer.id, bodyTrim]);
+      persistDb();
+      sendSmsReply(fromClean, 'Broadcast sent to ' + ids.length + ' volunteers.');
+      return res.sendStatus(200);
+    }
 
     if (volunteer.name === 'New Volunteer' && bodyTrim.toUpperCase() !== 'STOP' && bodyTrim.toUpperCase() !== 'UNSUBSCRIBE') {
       const nameMatch = bodyTrim.match(/^NAME:\s*(.+)/i);
