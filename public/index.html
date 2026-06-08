@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catsnip Etc. · Volunteer SMS</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="assets/css/style.css?v=1">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="#compose" class="logo-link">
+        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M16 2 Q12 6 8 10 Q4 14 3 18 Q2 22 4 26 Q6 29 10 30 Q14 31 16 31 Q18 31 22 30 Q26 29 28 26 Q30 22 29 18 Q28 14 24 10 Q20 6 16 2Z" fill="currentColor" opacity="0.5"/>
+          <path d="M10 10 L5 4 M12 6 L8 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M22 10 L27 4 M20 6 L24 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="13" cy="16" r="1.5" fill="var(--surface)"/>
+          <circle cx="19" cy="16" r="1.5" fill="var(--surface)"/>
+          <path d="M13 20 Q16 23 19 20" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        </svg>
+        <span class="logo-text">CatSnip</span>
+      </a>
+      <nav class="nav-links" role="tablist">
+        <a href="#compose" class="nav-link" data-view="compose" role="tab">
+          <i data-lucide="send" class="nav-icon"></i> Broadcast
+        </a>
+        <a href="#history" class="nav-link" data-view="history" role="tab">
+          <i data-lucide="message-square" class="nav-icon"></i> History
+        </a>
+        <a href="#volunteers" class="nav-link" data-view="volunteers" role="tab">
+          <i data-lucide="users" class="nav-icon"></i> Volunteers
+        </a>
+        <a href="#settings" class="nav-link" data-view="settings" role="tab">
+          <i data-lucide="settings" class="nav-icon"></i> Settings
+        </a>
+      </nav>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <i data-lucide="moon" class="theme-icon-dark"></i>
+        <i data-lucide="sun" class="theme-icon-light"></i>
+      </button>
+      <button id="logoutBtn" class="btn-logout" title="Logout" hidden>
+        <i data-lucide="log-out"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section id="view-login" class="view" role="tabpanel">
+      <div class="login-center">
+        <div class="login-card">
+          <svg class="logo-icon login-logo" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path d="M16 2 Q12 6 8 10 Q4 14 3 18 Q2 22 4 26 Q6 29 10 30 Q14 31 16 31 Q18 31 22 30 Q26 29 28 26 Q30 22 29 18 Q28 14 24 10 Q20 6 16 2Z" fill="currentColor" opacity="0.5"/>
+            <path d="M10 10 L5 4 M12 6 L8 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M22 10 L27 4 M20 6 L24 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="13" cy="16" r="1.5" fill="var(--surface)"/>
+            <circle cx="19" cy="16" r="1.5" fill="var(--surface)"/>
+            <path d="M13 20 Q16 23 19 20" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          </svg>
+          <h1 class="login-title">CatSnip</h1>
+          <p class="login-subtitle">Volunteer SMS Broadcast</p>
+          <form id="loginForm" class="login-form">
+            <div class="form-group">
+              <label for="loginUsername" class="form-label">Username</label>
+              <input type="text" id="loginUsername" class="form-input" placeholder="admin" required autocomplete="username">
+            </div>
+            <div class="form-group">
+              <label for="loginPassword" class="form-label">Password</label>
+              <input type="password" id="loginPassword" class="form-input" placeholder="password" required autocomplete="current-password">
+            </div>
+            <button type="submit" id="loginBtn" class="btn btn-primary btn-send">Sign In</button>
+            <div id="loginError" class="send-result error" hidden></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-compose" class="view" role="tabpanel" hidden>
+      <div class="two-col">
+        <div class="col col-main">
+          <div class="view-header">
+            <h1 class="view-title">Broadcast</h1>
+            <p class="view-subtitle">Send a message to your volunteers</p>
+          </div>
+          <div class="card compose-card">
+            <div class="card-body">
+              <div class="form-group">
+                <label for="messageBody" class="form-label">Message</label>
+                <textarea id="messageBody" class="form-textarea" rows="3" placeholder="Volunteer opportunity this Saturday…" maxlength="160"></textarea>
+                <div class="char-count"><span id="charCount">0</span>/160</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Send to</label>
+                <div class="radio-group">
+                  <label class="radio-label">
+                    <input type="radio" name="recipients" value="all" checked>
+                    <span>All active volunteers</span>
+                  </label>
+                  <label class="radio-label">
+                    <input type="radio" name="recipients" value="select">
+                    <span>Select individually</span>
+                  </label>
+                </div>
+                <div id="volunteerSelect" class="volunteer-list-select" hidden>
+                  <p class="empty-state">No volunteers yet. Add some in Volunteers.</p>
+                </div>
+              </div>
+              <button id="sendBtn" class="btn btn-primary btn-send">
+                <i data-lucide="send" class="btn-icon"></i> Send Message
+              </button>
+              <div id="sendResult" class="send-result" hidden></div>
+            </div>
+          </div>
+        </div>
+        <div class="col col-side">
+          <div class="view-header">
+            <h2 class="view-title" style="font-size:var(--text-lg);">Recent Replies</h2>
+            <p class="view-subtitle" id="responsePulse">Waiting for replies…</p>
+          </div>
+          <div id="responseFeed" class="response-feed">
+            <div class="skeleton-card"><div class="skeleton-line w-70"></div><div class="skeleton-line w-40"></div></div>
+            <div class="skeleton-card"><div class="skeleton-line w-60"></div><div class="skeleton-line w-50"></div></div>
+            <div class="skeleton-card"><div class="skeleton-line w-75"></div><div class="skeleton-line w-35"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-history" class="view" role="tabpanel" hidden>
+      <div class="view-header">
+        <h1 class="view-title">History</h1>
+        <p class="view-subtitle">Past messages and responses</p>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="skeleton-card"><div class="skeleton-line w-75"></div><div class="skeleton-line w-50"></div></div>
+        <div class="skeleton-card"><div class="skeleton-line w-60"></div><div class="skeleton-line w-40"></div></div>
+      </div>
+    </section>
+
+    <section id="view-volunteers" class="view" role="tabpanel" hidden>
+      <div class="view-header">
+        <h1 class="view-title">Volunteers</h1>
+        <p class="view-subtitle">Manage your contact list</p>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <form id="addVolunteerForm" class="add-volunteer-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="volName" class="form-label">Name</label>
+                <input type="text" id="volName" class="form-input" placeholder="Jane Doe" required>
+              </div>
+              <div class="form-group">
+                <label for="volPhone" class="form-label">Phone</label>
+                <input type="tel" id="volPhone" class="form-input" placeholder="+15745551234" required>
+              </div>
+              <button type="submit" class="btn btn-primary btn-add">
+                <i data-lucide="plus" class="btn-icon"></i> Add
+              </button>
+            </div>
+          </form>
+          <div id="volunteerTableWrap">
+            <div class="skeleton-card"><div class="skeleton-line w-90"></div><div class="skeleton-line w-70"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="view-settings" class="view" role="tabpanel" hidden>
+      <div class="view-header">
+        <h1 class="view-title">Settings</h1>
+        <p class="view-subtitle">SMS provider configuration</p>
+      </div>
+
+      <div id="settingsStatus" class="card" style="margin-bottom:var(--space-5)">
+        <div class="card-body">
+          <div class="setting-row">
+            <span class="setting-label">SMS Provider</span>
+            <span id="providerStatus" class="setting-value">Checking…</span>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Phone Number</span>
+            <span id="providerPhone" class="setting-value">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="form-group">
+            <div class="setting-label" style="margin-bottom:var(--space-2)">Inbound SMS Webhook URL</div>
+            <p class="setting-help">Set this URL in your Vonage dashboard so replies come to CatSnip instead of your phone.</p>
+            <div class="webhook-row">
+              <code id="webhookUrl" class="webhook-code">Loading…</code>
+              <button id="copyWebhookBtn" class="btn btn-primary" style="flex-shrink:0">
+                <i data-lucide="copy" class="btn-icon"></i> Copy
+              </button>
+            </div>
+            <details class="setup-steps">
+              <summary class="setup-summary">How to set this up in Vonage</summary>
+              <ol class="setup-list">
+                <li>Go to <a href="https://dashboard.nexmo.com" target="_blank">Vonage Dashboard</a></li>
+                <li>Click <strong>Numbers</strong> → <strong>Your Numbers</strong></li>
+                <li>Click on your number</li>
+                <li>Under <strong>SMS</strong>, set <strong>Inbound Webhook URL</strong> to the URL above</li>
+                <li>Click <strong>Save</strong></li>
+                <li>That's it — replies will appear in the Broadcast feed</li>
+              </ol>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5)">
+        <div class="card-body">
+          <div class="form-group">
+            <div class="setting-label" style="margin-bottom:var(--space-2)">Environment Variables</div>
+            <p class="setting-help">These go in the <code>.env</code> file next to <code>server.js</code> on your server.</p>
+            <div class="env-table">
+              <div class="env-row"><code class="env-var">VONAGE_API_KEY</code><span class="env-desc">From Vonage dashboard</span></div>
+              <div class="env-row"><code class="env-var">VONAGE_API_SECRET</code><span class="env-desc">From Vonage dashboard</span></div>
+              <div class="env-row"><code class="env-var">VONAGE_PHONE_NUMBER</code><span class="env-desc">The number you bought (with +1)</span></div>
+              <div class="env-row"><code class="env-var">PORT</code><span class="env-desc">Defaults to 3000</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="detailModal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle" class="modal-title">Details</h2>
+        <button class="modal-close" data-close-modal aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="assets/js/app.js?v=1"></script>
+</body>
+</html>
