@@ -11,6 +11,7 @@
     "@vonage/server-sdk": "^3.27.0",
     "dotenv": "^16.6.1",
     "express": "^4.22.2",
+    "nodemailer": "^8.0.10",
     "sql.js": "^1.14.1"
   }
 }

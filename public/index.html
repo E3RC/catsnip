@@ -214,6 +214,46 @@
       <div class="card" style="margin-top:var(--space-5)">
         <div class="card-body">
           <div class="form-group">
+            <div class="setting-label" style="margin-bottom:var(--space-2)">Admin Broadcast Numbers</div>
+            <p class="setting-help">Phone numbers that can send SMS-to-broadcast by texting the Vonage number.</p>
+            <div class="webhook-row" style="margin-bottom:var(--space-3)">
+              <input type="tel" id="adminPhoneInput" class="form-input" placeholder="+15745551234">
+              <input type="text" id="adminPhoneName" class="form-input" placeholder="Name (optional)" style="max-width:160px">
+              <button id="addAdminPhoneBtn" class="btn btn-primary" style="flex-shrink:0">
+                <i data-lucide="plus" class="btn-icon"></i> Add
+              </button>
+            </div>
+            <div id="adminPhoneList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5)">
+        <div class="card-body">
+          <div class="form-group">
+            <div class="setting-label" style="margin-bottom:var(--space-2)">Daily Email Report</div>
+            <p class="setting-help">End-of-day summary sent to these email addresses. Sends via local sendmail by default; set <code>SMTP_HOST</code> in .env for a relay.</p>
+            <div class="webhook-row" style="margin-bottom:var(--space-3)">
+              <input type="email" id="reportEmailInput" class="form-input" placeholder="admin@example.com">
+              <input type="text" id="reportEmailName" class="form-input" placeholder="Name" style="max-width:120px">
+              <button id="addReportBtn" class="btn btn-primary" style="flex-shrink:0">
+                <i data-lucide="plus" class="btn-icon"></i> Add
+              </button>
+            </div>
+            <div id="reportRecipientList"></div>
+            <div style="margin-top:var(--space-3);display:flex;gap:var(--space-2);flex-wrap:wrap">
+              <button id="sendTestReportBtn" class="btn btn-secondary">
+                <i data-lucide="send" class="btn-icon"></i> Send Test
+              </button>
+              <span id="reportSendStatus" class="setting-value" style="font-size:var(--text-sm)"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5)">
+        <div class="card-body">
+          <div class="form-group">
             <div class="setting-label" style="margin-bottom:var(--space-2)">Environment Variables</div>
             <p class="setting-help">These go in the <code>.env</code> file next to <code>server.js</code> on your server.</p>
             <div class="env-table">

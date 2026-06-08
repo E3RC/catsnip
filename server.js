@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const initSqlJs = require('sql.js');
 const { Auth } = require('@vonage/auth');
 const { Vonage } = require('@vonage/server-sdk');
+const nodemailer = require('nodemailer');
 
 const DB_PATH = path.join(__dirname, 'data', 'catsnip.db');
 
@@ -86,6 +87,29 @@ async function initDb() {
     FOREIGN KEY (volunteer_id) REFERENCES volunteers(id)
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS admin_phones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT NOT NULL UNIQUE,
+    name TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS report_recipients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS report_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    recipient_count INTEGER DEFAULT 0,
+    message_count INTEGER DEFAULT 0,
+    response_count INTEGER DEFAULT 0,
+    error TEXT
+  )`);
+
   persistDb();
 
   const app = express();
@@ -100,7 +124,6 @@ async function initDb() {
   const sessions = new Map();
   const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
   const ADMIN_PASS = (process.env.ADMIN_PASSWORD || '').trim();
-  const ADMIN_PHONE = (process.env.ADMIN_PHONE || '').trim();
 
   function requireAuth(req, res, next) {
     if (req.path === '/login' || req.path === '/incoming-sms') return next();
@@ -177,6 +200,29 @@ async function initDb() {
 
   app.delete('/api/volunteers/:id', (req, res) => {
     db.run('UPDATE volunteers SET status = ? WHERE id = ?', ['removed', req.params.id]);
+    persistDb();
+    res.json({ ok: true });
+  });
+
+  app.get('/api/admin-phones', (req, res) => {
+    res.json(dbAll('SELECT * FROM admin_phones ORDER BY created_at DESC'));
+  });
+
+  app.post('/api/admin-phones', (req, res) => {
+    const { phone, name } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone required' });
+    const p = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
+    try {
+      const r = dbRun('INSERT INTO admin_phones (phone, name) VALUES (?, ?)', [p, name || '']);
+      persistDb();
+      res.json({ id: r.lastInsertRowid, phone: p, name: name || '' });
+    } catch (e) {
+      res.status(409).json({ error: 'Already exists' });
+    }
+  });
+
+  app.delete('/api/admin-phones/:id', (req, res) => {
+    db.run('DELETE FROM admin_phones WHERE id = ?', [req.params.id]);
     persistDb();
     res.json({ ok: true });
   });
@@ -271,6 +317,118 @@ async function initDb() {
     vonageClient.sms.send({ to, from: process.env.VONAGE_PHONE_NUMBER, text }).catch(() => {});
   }
 
+  function generateDailyReport() {
+    const today = new Date().toISOString().slice(0, 10);
+    const activeVols = dbAll('SELECT COUNT(*) as count FROM volunteers WHERE status = ?', ['active'])[0].count;
+    const messages = dbAll(`SELECT m.*,
+      (SELECT COUNT(*) FROM deliveries d WHERE d.message_id = m.id AND d.status = 'delivered') as delivered_count,
+      (SELECT COUNT(*) FROM responses r WHERE r.message_id = m.id) as response_count
+      FROM messages m WHERE date(m.sent_at) = ? ORDER BY m.sent_at`, [today]);
+    const responses = dbAll(`SELECT r.*, v.name, v.phone, m.body as message_body
+      FROM responses r JOIN volunteers v ON v.id = r.volunteer_id LEFT JOIN messages m ON m.id = r.message_id
+      WHERE date(r.received_at) = ? ORDER BY r.received_at`, [today]);
+
+    let text = `CatSnip Daily Report — ${today}\n${'='.repeat(50)}\n\nActive Volunteers: ${activeVols}\nMessages Sent: ${messages.length}\nResponses Received: ${responses.length}\n\n`;
+    if (messages.length) {
+      text += '--- Broadcasts ---\n';
+      for (const m of messages) text += `[${m.sent_at}] "${m.body}" → ${m.delivered_count}/${m.recipient_count} delivered, ${m.response_count} replies\n`;
+    }
+    if (responses.length) {
+      text += '\n--- Replies ---\n';
+      for (const r of responses) text += `[${r.received_at}] ${r.name} (${r.phone}): "${r.body}"${r.message_body ? ` (re: "${r.message_body}")` : ''}\n`;
+    }
+    if (!messages.length && !responses.length) text += 'No activity today.\n';
+
+    let html = `<h1 style="margin:0 0 4px;font-size:18px;">CatSnip Daily Report</h1><p style="margin:0 0 16px;color:#666;">${today}</p>`;
+    html += `<table style="border-collapse:collapse;margin-bottom:16px;"><tr><td style="padding:6px 16px 6px 0;font-weight:600;">Active Volunteers</td><td>${activeVols}</td></tr>`;
+    html += `<tr><td style="padding:6px 16px 6px 0;font-weight:600;">Messages Sent</td><td>${messages.length}</td></tr>`;
+    html += `<tr><td style="padding:6px 16px 6px 0;font-weight:600;">Replies Received</td><td>${responses.length}</td></tr></table>`;
+    if (messages.length) {
+      html += '<h2 style="font-size:14px;margin:0 0 8px;">Broadcasts</h2>';
+      for (const m of messages) html += `<p style="margin:0 0 6px;padding:8px;background:#f5f5f5;border-radius:4px;"><strong>${m.sent_at}</strong> ${m.body}<br><span style="color:#666;font-size:13px;">${m.delivered_count}/${m.recipient_count} delivered, ${m.response_count} replies</span></p>`;
+    }
+    if (responses.length) {
+      html += '<h2 style="font-size:14px;margin:12px 0 8px;">Replies</h2>';
+      for (const r of responses) html += `<p style="margin:0 0 6px;padding:8px;background:#f5f5f5;border-radius:4px;"><strong>${r.name}</strong> (${r.phone}): ${r.body}${r.message_body ? `<br><span style="color:#666;font-size:13px;">re: ${r.message_body}</span>` : ''}</p>`;
+    }
+    if (!messages.length && !responses.length) html += '<p style="color:#999;">No activity today.</p>';
+    html += '<hr style="margin:16px 0;border:none;border-top:1px solid #eee;"><p style="color:#999;font-size:12px;">Sent by CatSnip volunteer broadcast system</p>';
+
+    return { text, html };
+  }
+
+  function getMailTransport() {
+    if (process.env.SMTP_HOST) {
+      return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      });
+    }
+    return nodemailer.createTransport({ sendmail: true, newline: 'unix' });
+  }
+
+  async function sendDailyReport() {
+    const recipients = dbAll('SELECT email, name FROM report_recipients');
+    if (!recipients.length) return;
+    const report = generateDailyReport();
+    const from = process.env.SMTP_FROM || 'catsnip@localhost';
+    const transporter = getMailTransport();
+    let successCount = 0;
+    for (const r of recipients) {
+      try {
+        await transporter.sendMail({
+          from, to: r.email,
+          subject: `CatSnip Daily Report — ${new Date().toISOString().slice(0, 10)}`,
+          text: report.text,
+          html: report.html,
+        });
+        successCount++;
+      } catch (e) {
+        console.error('Report email failed to', r.email, e.message);
+      }
+    }
+    dbRun('INSERT INTO report_log (recipient_count, message_count, response_count, error) VALUES (?, ?, ?, ?)',
+      [recipients.length, 0, 0, successCount < recipients.length ? 'partial failure' : null]);
+    persistDb();
+  }
+
+  app.get('/api/report/recipients', (req, res) => {
+    res.json(dbAll('SELECT * FROM report_recipients ORDER BY created_at DESC'));
+  });
+
+  app.post('/api/report/recipients', (req, res) => {
+    const { email, name } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    try {
+      const r = dbRun('INSERT INTO report_recipients (email, name) VALUES (?, ?)', [email, name || '']);
+      persistDb();
+      res.json({ id: r.lastInsertRowid, email, name: name || '' });
+    } catch (e) {
+      res.status(409).json({ error: 'Already exists' });
+    }
+  });
+
+  app.delete('/api/report/recipients/:id', (req, res) => {
+    db.run('DELETE FROM report_recipients WHERE id = ?', [req.params.id]);
+    persistDb();
+    res.json({ ok: true });
+  });
+
+  app.get('/api/report/preview', (req, res) => {
+    res.json(generateDailyReport());
+  });
+
+  app.post('/api/report/send', async (req, res) => {
+    try {
+      await sendDailyReport();
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post('/api/incoming-sms', (req, res) => {
     const text = req.body.text || req.body.Body;
     const from = req.body.msisdn || req.body.From;
@@ -288,7 +446,7 @@ async function initDb() {
 
     const bodyTrim = text.trim();
 
-    if (ADMIN_PHONE && fromClean === ADMIN_PHONE) {
+    if (dbGet('SELECT id FROM admin_phones WHERE phone = ?', [fromClean])) {
       const ids = dbAll('SELECT id, phone FROM volunteers WHERE status = ?', ['active']).map(v => v.id);
       if (ids.length > 0) {
         const msgResult = dbRun('INSERT INTO messages (body, recipient_count) VALUES (?, ?)', [bodyTrim, ids.length]);
@@ -338,6 +496,22 @@ async function initDb() {
 
     res.sendStatus(200);
   });
+
+  if (process.env.REPORT_SCHEDULE_ENABLED === 'true') {
+    const sendTime = process.env.REPORT_SEND_TIME || '17:00';
+    console.log('Daily report scheduling enabled, send time:', sendTime);
+    setInterval(() => {
+      const now = new Date();
+      const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const lastSent = dbGet('SELECT MAX(sent_at) as last FROM report_log');
+      const todayStr = now.toISOString().slice(0, 10);
+      if (timeStr === sendTime && (!lastSent?.last || !lastSent.last.startsWith(todayStr))) {
+        sendDailyReport().catch(e => console.error('Scheduled report failed:', e.message));
+      }
+    }, 60000);
+  } else {
+    console.log('Daily report scheduling disabled (set REPORT_SCHEDULE_ENABLED=true to enable)');
+  }
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => {

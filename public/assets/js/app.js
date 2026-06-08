@@ -358,6 +358,118 @@
       if (ps) ps.textContent = s.sms ? 'Connected (Vonage)' : 'Not configured';
       if (pp) pp.textContent = s.sms ? 'See .env' : '—';
     } catch (e) {}
+    loadAdminPhones();
+    loadReportRecipients();
+  }
+
+  async function loadAdminPhones() {
+    var list = document.getElementById('adminPhoneList');
+    if (!list) return;
+    try {
+      var nums = await api('GET', '/api/admin-phones');
+      if (nums.length === 0) {
+        list.innerHTML = '<p class="empty-state">No authorized numbers. Add one above.</p>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < nums.length; i++) {
+        var n = nums[i];
+        html += '<div class="setting-row">' +
+          '<span><strong>' + esc(n.name || '—') + '</strong> <span class="vol-since">' + esc(n.phone) + '</span></span>' +
+          '<button class="btn btn-danger" data-del-admin="' + n.id + '" style="padding:4px 12px;font-size:var(--text-xs)">Remove</button></div>';
+      }
+      list.innerHTML = html;
+      qsa('[data-del-admin]').forEach(function (btn) {
+        btn.addEventListener('click', function () { removeAdminPhone(btn.dataset.delAdmin); });
+      });
+    } catch (e) {
+      list.innerHTML = '<p class="empty-state">Failed to load.</p>';
+    }
+  }
+
+  async function addAdminPhone() {
+    var phone = document.getElementById('adminPhoneInput').value.trim();
+    var name = document.getElementById('adminPhoneName').value.trim();
+    if (!phone) return;
+    try {
+      await api('POST', '/api/admin-phones', { phone: phone, name: name });
+      document.getElementById('adminPhoneInput').value = '';
+      document.getElementById('adminPhoneName').value = '';
+      loadAdminPhones();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function removeAdminPhone(id) {
+    if (!confirm('Remove this authorized number?')) return;
+    try {
+      await api('DELETE', '/api/admin-phones/' + id);
+      loadAdminPhones();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function loadReportRecipients() {
+    var list = document.getElementById('reportRecipientList');
+    if (!list) return;
+    try {
+      var recipients = await api('GET', '/api/report/recipients');
+      if (recipients.length === 0) {
+        list.innerHTML = '<p class="empty-state">No recipients configured.</p>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < recipients.length; i++) {
+        var r = recipients[i];
+        html += '<div class="setting-row">' +
+          '<span><strong>' + esc(r.name || r.email) + '</strong> <span class="vol-since">' + (r.name ? r.email : '') + '</span></span>' +
+          '<button class="btn btn-danger" data-del-recipient="' + r.id + '" style="padding:4px 12px;font-size:var(--text-xs)">Remove</button></div>';
+      }
+      list.innerHTML = html;
+      qsa('[data-del-recipient]').forEach(function (btn) {
+        btn.addEventListener('click', function () { removeReportRecipient(btn.dataset.delRecipient); });
+      });
+    } catch (e) {
+      list.innerHTML = '<p class="empty-state">Failed to load.</p>';
+    }
+  }
+
+  async function addReportRecipient() {
+    var email = document.getElementById('reportEmailInput').value.trim();
+    var name = document.getElementById('reportEmailName').value.trim();
+    if (!email) return;
+    try {
+      await api('POST', '/api/report/recipients', { email: email, name: name });
+      document.getElementById('reportEmailInput').value = '';
+      document.getElementById('reportEmailName').value = '';
+      loadReportRecipients();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function removeReportRecipient(id) {
+    if (!confirm('Remove this recipient?')) return;
+    try {
+      await api('DELETE', '/api/report/recipients/' + id);
+      loadReportRecipients();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function sendTestReport() {
+    var status = document.getElementById('reportSendStatus');
+    if (status) status.textContent = 'Sending\u2026';
+    try {
+      await api('POST', '/api/report/send');
+      if (status) status.textContent = 'Sent!';
+      setTimeout(function () { if (status) status.textContent = ''; }, 3000);
+    } catch (e) {
+      if (status) status.textContent = 'Failed: ' + e.message;
+    }
   }
 
   async function login(e) {
@@ -452,6 +564,15 @@
       setTimeout(function () { btn.innerHTML = '<i data-lucide="copy" class="btn-icon"></i> Copy'; lucide.createIcons(); }, 2000);
     }).catch(function () {});
   });
+
+  var addAdminBtn = document.getElementById('addAdminPhoneBtn');
+  if (addAdminBtn) addAdminBtn.addEventListener('click', addAdminPhone);
+
+  var addReportBtn = document.getElementById('addReportBtn');
+  if (addReportBtn) addReportBtn.addEventListener('click', addReportRecipient);
+
+  var sendTestBtn = document.getElementById('sendTestReportBtn');
+  if (sendTestBtn) sendTestBtn.addEventListener('click', sendTestReport);
 
   qsa('[data-close-modal]').forEach(function (el) {
     el.addEventListener('click', function () { hide(document.getElementById('detailModal')); });
