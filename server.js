@@ -149,7 +149,7 @@ async function initDb() {
   });
 
   app.use('/api', (req, res, next) => {
-    if (req.path === '/incoming-sms') console.log('=== WEBHOOK CALL ===', req.method, req.headers['user-agent'], req.headers['content-type'], JSON.stringify(req.body));
+    if (req.path === '/incoming-sms') console.log('=== WEBHOOK CALL ===', req.method, req.headers['user-agent'], req.headers['content-type'], req.body ? JSON.stringify(req.body) : 'NO BODY (raw body may be unparsed)');
     next();
   });
 
