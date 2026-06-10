@@ -320,7 +320,8 @@ async function initDb() {
 
   function sendSmsReply(to, text) {
     if (!vonageClient || !process.env.VONAGE_PHONE_NUMBER) return;
-    vonageClient.sms.send({ to, from: process.env.VONAGE_PHONE_NUMBER, text }).catch(e => console.log('sendSmsReply error:', to, e.message));
+    console.log('sendSmsReply sending to', to);
+    vonageClient.sms.send({ to, from: process.env.VONAGE_PHONE_NUMBER, text }).then(() => console.log('sendSmsReply success to', to)).catch(e => console.log('sendSmsReply error:', to, e.message));
   }
 
   function generateDailyReport() {
