@@ -446,12 +446,12 @@ async function initDb() {
     }
 
     const fromClean = (from || '').trim().startsWith('+') ? (from || '').trim() : '+' + (from || '').trim();
-    let volunteer = dbGet('SELECT id FROM volunteers WHERE phone = ?', [fromClean]);
+    let volunteer = dbGet('SELECT * FROM volunteers WHERE phone = ?', [fromClean]);
 
     if (!volunteer) {
       dbRun('INSERT INTO volunteers (name, phone) VALUES (?, ?)', ['New Volunteer', fromClean]);
       persistDb();
-      volunteer = dbGet('SELECT id FROM volunteers WHERE phone = ?', [fromClean]);
+      volunteer = dbGet('SELECT * FROM volunteers WHERE phone = ?', [fromClean]);
       sendSmsReply(fromClean, 'Thanks for joining CatSnip volunteer alerts! Reply with your name to personalize your contact info.');
     }
 
