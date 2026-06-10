@@ -160,6 +160,7 @@ async function initDb() {
   const secret = process.env.VONAGE_API_SECRET || '';
   if (key && secret && !key.includes('your_')) {
     vonageClient = new Vonage(new Auth({ apiKey: key, apiSecret: secret }));
+    console.log('Vonage client created, phone:', process.env.VONAGE_PHONE_NUMBER);
   }
 
   function sendSms(to, body, messageId, volunteerId) {
@@ -319,7 +320,7 @@ async function initDb() {
 
   function sendSmsReply(to, text) {
     if (!vonageClient || !process.env.VONAGE_PHONE_NUMBER) return;
-    vonageClient.sms.send({ to, from: process.env.VONAGE_PHONE_NUMBER, text }).catch(() => {});
+    vonageClient.sms.send({ to, from: process.env.VONAGE_PHONE_NUMBER, text }).catch(e => console.log('sendSmsReply error:', to, e.message));
   }
 
   function generateDailyReport() {
