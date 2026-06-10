@@ -148,6 +148,11 @@ async function initDb() {
     }
   });
 
+  app.use('/api', (req, res, next) => {
+    if (req.path === '/incoming-sms') console.log('=== WEBHOOK CALL ===', req.method, req.headers['user-agent'], JSON.stringify(req.body));
+    next();
+  });
+
   app.use('/api', requireAuth);
 
   let vonageClient = null;
@@ -429,12 +434,17 @@ async function initDb() {
     }
   });
 
+  app.get('/api/incoming-sms', (req, res) => { res.sendStatus(200); });
+
   app.post('/api/incoming-sms', (req, res) => {
     const text = req.body.text || req.body.Body;
-    const from = req.body.msisdn || req.body.From;
-    if (!text || !from) return res.sendStatus(400);
+    const from = req.body.from || req.body.msisdn || req.body.From;
+    if (!text || !from) {
+      console.log('Incoming SMS rejected - missing text or from:', { text, from });
+      return res.sendStatus(400);
+    }
 
-    const fromClean = from.startsWith('+') ? from : '+' + from;
+    const fromClean = (from || '').trim().startsWith('+') ? (from || '').trim() : '+' + (from || '').trim();
     let volunteer = dbGet('SELECT id FROM volunteers WHERE phone = ?', [fromClean]);
 
     if (!volunteer) {
