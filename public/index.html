@@ -231,6 +231,46 @@
       <div class="card" style="margin-top:var(--space-5)">
         <div class="card-body">
           <div class="form-group">
+            <div class="setting-label" style="margin-bottom:var(--space-2)">10DLC Registration</div>
+            <p class="setting-help">US carriers require 10DLC (10-Digit Long Code) registration for A2P SMS. Without it, T-Mobile and others may block messages.</p>
+            <div id="tenDlcStatus" class="ten-dlc-status" style="margin-bottom:var(--space-3)">
+              <span class="ten-dlc-badge badge-pending">Pending</span>
+              <span class="setting-value" style="font-size:var(--text-sm)">You must register your Brand and Campaign before SMS works on all carriers.</span>
+            </div>
+            <div class="ten-dlc-steps" style="display:flex;flex-direction:column;gap:var(--space-3)">
+              <div class="ten-dlc-step">
+                <div class="step-header" style="font-weight:600;margin-bottom:var(--space-1)">1. Register Your Brand</div>
+                <p class="setting-help" style="margin-bottom:var(--space-1)">Submit your business/org info to the TCR (The Campaign Registry).</p>
+                <a href="https://dashboard.nexmo.com/10dlc/brands" target="_blank" class="btn btn-secondary btn-sm">
+                  <i data-lucide="external-link" class="btn-icon"></i> Vonage 10DLC Brands
+                </a>
+              </div>
+              <div class="ten-dlc-step">
+                <div class="step-header" style="font-weight:600;margin-bottom:var(--space-1)">2. Create a Campaign</div>
+                <p class="setting-help" style="margin-bottom:var(--space-1)">Choose a use case (e.g. "Volunteer Alerts" or "Charity/NPO") and link it to your brand.</p>
+                <a href="https://dashboard.nexmo.com/10dlc/campaigns" target="_blank" class="btn btn-secondary btn-sm">
+                  <i data-lucide="external-link" class="btn-icon"></i> Vonage 10DLC Campaigns
+                </a>
+              </div>
+              <div class="ten-dlc-step">
+                <div class="step-header" style="font-weight:600;margin-bottom:var(--space-1)">3. Assign Your Number</div>
+                <p class="setting-help" style="margin-bottom:var(--space-1)">Link your Vonage phone number to the approved campaign.</p>
+                <a href="https://dashboard.nexmo.com/numbers/your-numbers" target="_blank" class="btn btn-secondary btn-sm">
+                  <i data-lucide="external-link" class="btn-icon"></i> Your Numbers
+                </a>
+              </div>
+            </div>
+            <details style="margin-top:var(--space-3)">
+              <summary class="setup-summary" style="font-size:var(--text-sm)">About 10DLC</summary>
+              <p class="setting-help" style="margin-top:var(--space-2)">10DLC is a <strong>mandatory</strong> US carrier framework for A2P (application-to-person) SMS sent over long codes. Without it, T-Mobile and AT&T block or filter unregistered traffic. Verizon has been lenient but may begin enforcing soon. Registration costs a one-time fee (~$15 brand + ~$25 campaign) and takes 1–3 days for carrier approval.</p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:var(--space-5)">
+        <div class="card-body">
+          <div class="form-group">
             <div class="setting-label" style="margin-bottom:var(--space-2)">Daily Email Report</div>
             <p class="setting-help">End-of-day summary sent to these email addresses. Sends via local sendmail by default; set <code>SMTP_HOST</code> in .env for a relay.</p>
             <div class="webhook-row" style="margin-bottom:var(--space-3)">
