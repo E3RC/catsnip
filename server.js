@@ -150,7 +150,7 @@ async function initDb() {
     } catch (e) { console.log('Neon sync error:', e.message); }
   }
 
-  setInterval(syncToNeon, 300000);
+  setInterval(syncToNeon, 3600000);
   if (neonPool) syncToNeon().catch(() => {});
 
   const app = express();
