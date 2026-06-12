@@ -335,7 +335,7 @@ async function initDb() {
       FROM responses r JOIN volunteers v ON v.id = r.volunteer_id LEFT JOIN messages m ON m.id = r.message_id
       WHERE date(r.received_at) = ? ORDER BY r.received_at`, [today]);
 
-    let text = `CatSnip Daily Report — ${today}\n${'='.repeat(50)}\n\nActive Volunteers: ${activeVols}\nMessages Sent: ${messages.length}\nResponses Received: ${responses.length}\n\n`;
+    let text = `Catsnip Daily Report — ${today}\n${'='.repeat(50)}\n\nActive Volunteers: ${activeVols}\nMessages Sent: ${messages.length}\nResponses Received: ${responses.length}\n\n`;
     if (messages.length) {
       text += '--- Broadcasts ---\n';
       for (const m of messages) text += `[${m.sent_at}] "${m.body}" → ${m.delivered_count}/${m.recipient_count} delivered, ${m.response_count} replies\n`;
@@ -346,7 +346,7 @@ async function initDb() {
     }
     if (!messages.length && !responses.length) text += 'No activity today.\n';
 
-    let html = `<h1 style="margin:0 0 4px;font-size:18px;">CatSnip Daily Report</h1><p style="margin:0 0 16px;color:#666;">${today}</p>`;
+    let html = `<h1 style="margin:0 0 4px;font-size:18px;">Catsnip Daily Report</h1><p style="margin:0 0 16px;color:#666;">${today}</p>`;
     html += `<table style="border-collapse:collapse;margin-bottom:16px;"><tr><td style="padding:6px 16px 6px 0;font-weight:600;">Active Volunteers</td><td>${activeVols}</td></tr>`;
     html += `<tr><td style="padding:6px 16px 6px 0;font-weight:600;">Messages Sent</td><td>${messages.length}</td></tr>`;
     html += `<tr><td style="padding:6px 16px 6px 0;font-weight:600;">Replies Received</td><td>${responses.length}</td></tr></table>`;
@@ -359,7 +359,7 @@ async function initDb() {
       for (const r of responses) html += `<p style="margin:0 0 6px;padding:8px;background:#f5f5f5;border-radius:4px;"><strong>${r.name}</strong> (${r.phone}): ${r.body}${r.message_body ? `<br><span style="color:#666;font-size:13px;">re: ${r.message_body}</span>` : ''}</p>`;
     }
     if (!messages.length && !responses.length) html += '<p style="color:#999;">No activity today.</p>';
-    html += '<hr style="margin:16px 0;border:none;border-top:1px solid #eee;"><p style="color:#999;font-size:12px;">Sent by CatSnip volunteer broadcast system</p>';
+    html += '<hr style="margin:16px 0;border:none;border-top:1px solid #eee;"><p style="color:#999;font-size:12px;">Sent by Catsnip volunteer broadcast system</p>';
 
     return { text, html };
   }
@@ -387,7 +387,7 @@ async function initDb() {
       try {
         await transporter.sendMail({
           from, to: r.email,
-          subject: `CatSnip Daily Report — ${new Date().toISOString().slice(0, 10)}`,
+          subject: `Catsnip Daily Report — ${new Date().toISOString().slice(0, 10)}`,
           text: report.text,
           html: report.html,
         });
@@ -453,7 +453,7 @@ async function initDb() {
       dbRun('INSERT INTO volunteers (name, phone) VALUES (?, ?)', ['New Volunteer', fromClean]);
       persistDb();
       volunteer = dbGet('SELECT * FROM volunteers WHERE phone = ?', [fromClean]);
-      sendSmsReply(fromClean, 'Thanks for joining CatSnip volunteer alerts! Reply with your name to personalize your contact info.');
+      sendSmsReply(fromClean, 'Thanks for joining Catsnip volunteer alerts! Reply with your name to personalize your contact info.');
     }
 
     const bodyTrim = text.trim();
@@ -527,7 +527,7 @@ async function initDb() {
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`CatSnip running on http://0.0.0.0:${PORT}`);
+    console.log(`Catsnip running on http://0.0.0.0:${PORT}`);
   });
 }
 
