@@ -7,6 +7,7 @@ const initSqlJs = require('sql.js');
 const { Auth } = require('@vonage/auth');
 const { Vonage } = require('@vonage/server-sdk');
 const nodemailer = require('nodemailer');
+const { Pool } = require('pg');
 
 const DB_PATH = path.join(__dirname, 'data', 'catsnip.db');
 
@@ -111,6 +112,46 @@ async function initDb() {
   )`);
 
   persistDb();
+
+  let neonPool = null;
+  if (process.env.DATABASE_URL) {
+    neonPool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10000 });
+    console.log('Neon backup configured');
+  }
+
+  async function syncToNeon() {
+    if (!neonPool) return;
+    try {
+      const client = await neonPool.connect();
+      try {
+        const tables = [
+          { name: 'volunteers', pk: 'id', cols: ['id', 'name', 'phone', 'status', 'created_at'] },
+          { name: 'messages', pk: 'id', cols: ['id', 'body', 'sent_at', 'recipient_count'] },
+          { name: 'deliveries', pk: 'id', cols: ['id', 'message_id', 'volunteer_id', 'status', 'provider_id', 'error'] },
+          { name: 'responses', pk: 'id', cols: ['id', 'message_id', 'volunteer_id', 'body', 'received_at'] },
+          { name: 'admin_phones', pk: 'id', cols: ['id', 'phone', 'name', 'created_at'] },
+          { name: 'report_recipients', pk: 'id', cols: ['id', 'email', 'name', 'created_at'] },
+          { name: 'report_log', pk: 'id', cols: ['id', 'sent_at', 'recipient_count', 'message_count', 'response_count', 'error'] },
+        ];
+        for (const t of tables) {
+          await client.query(`CREATE TABLE IF NOT EXISTS ${t.name} (${t.cols.map(c => `"${c}" TEXT`).join(', ')})`);
+          const rows = dbAll(`SELECT ${t.cols.join(', ')} FROM ${t.name}`);
+          if (rows.length) {
+            await client.query(`DELETE FROM ${t.name}`);
+            for (const row of rows) {
+              const keys = Object.keys(row);
+              const vals = keys.map(k => row[k]);
+              await client.query(`INSERT INTO ${t.name} (${keys.map(k => `"${k}"`).join(', ')}) VALUES (${vals.map((_, i) => '$' + (i + 1)).join(', ')})`, vals);
+            }
+          }
+        }
+        console.log('Neon sync ok');
+      } finally { client.release(); }
+    } catch (e) { console.log('Neon sync error:', e.message); }
+  }
+
+  setInterval(syncToNeon, 300000);
+  if (neonPool) syncToNeon().catch(() => {});
 
   const app = express();
   app.use(express.json());
