@@ -35,7 +35,7 @@ async function initDb() {
   if (Database) {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
-    db.run = (...args) => Array.isArray(args[1]) ? db.prepare(args[0]).run(...args[1]) : db.prepare(args[0]).run(args[1] || undefined);
+    db.run = (sql, params) => Array.isArray(params) ? db.prepare(sql).run(...params) : db.prepare(sql).run();
   } else {
     const SQL = await initSqlJs();
     if (fs.existsSync(DB_PATH)) {
