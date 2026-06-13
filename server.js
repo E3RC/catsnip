@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const Database = (() => { try { return require('better-sqlite3'); } catch { return null; } })();
 const initSqlJs = require('sql.js');
 const { Auth } = require('@vonage/auth');
 const { Vonage } = require('@vonage/server-sdk');
@@ -14,42 +15,37 @@ const DB_PATH = path.join(__dirname, 'data', 'catsnip.db');
 let db;
 
 function dbAll(sql, params) {
-  const stmt = db.prepare(sql);
-  if (params) stmt.bind(params);
-  const rows = [];
-  while (stmt.step()) rows.push(stmt.getAsObject());
-  stmt.free();
-  return rows;
+  return params ? db.prepare(sql).all(params) : db.prepare(sql).all();
 }
 
 function dbGet(sql, params) {
-  const rows = dbAll(sql, params);
-  return rows[0] || null;
+  return params ? db.prepare(sql).get(params) || null : db.prepare(sql).get() || null;
 }
 
 function dbRun(sql, params) {
-  db.run(sql, params || []);
-  const result = db.exec('SELECT last_insert_rowid() as id; SELECT changes() as changes');
-  return {
-    lastInsertRowid: result[0]?.values?.[0]?.[0] || null,
-    changes: result[1]?.values?.[0]?.[0] || 0,
-  };
-}
-
-function dbChanges() {
-  const r = db.exec('SELECT changes() as c');
-  return r[0]?.values?.[0]?.[0] || 0;
+  const stmt = db.prepare(sql);
+  const info = params ? stmt.run(params) : stmt.run();
+  return { lastInsertRowid: info.lastInsertRowid, changes: info.changes };
 }
 
 async function initDb() {
-  const SQL = await initSqlJs();
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  if (fs.existsSync(DB_PATH)) {
-    db = new SQL.Database(fs.readFileSync(DB_PATH));
+  if (Database) {
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
   } else {
-    db = new SQL.Database();
+    const SQL = await initSqlJs();
+    if (fs.existsSync(DB_PATH)) {
+      db = new SQL.Database(fs.readFileSync(DB_PATH));
+    } else {
+      db = new SQL.Database();
+    }
+    const _persist = () => fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
+    const origRun = db.run.bind(db);
+    db.run = (...args) => { origRun(...args); _persist(); };
+    _persist();
   }
 
   db.run(`CREATE TABLE IF NOT EXISTS volunteers (
@@ -158,10 +154,6 @@ async function initDb() {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.static(path.join(__dirname, 'public')));
 
-  function persistDb() {
-    fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
-  }
-
   const sessions = new Map();
   const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
   const ADMIN_PASS = (process.env.ADMIN_PASSWORD || '').trim();
@@ -212,12 +204,11 @@ async function initDb() {
     }).then(msg => {
       db.run('UPDATE deliveries SET status = ?, provider_id = ? WHERE message_id = ? AND volunteer_id = ?',
         ['delivered', msg.messages?.[0]?.['message-id'] || 'ok', messageId, volunteerId]);
-      persistDb();
       return msg;
     }).catch(err => {
       db.run('UPDATE deliveries SET status = ?, error = ? WHERE message_id = ? AND volunteer_id = ?',
         ['failed', err.message, messageId, volunteerId]);
-      persistDb();
+
       throw err;
     });
   }
@@ -238,7 +229,7 @@ async function initDb() {
     if (!name || !phone) return res.status(400).json({ error: 'Name and phone required' });
     try {
       const result = dbRun('INSERT INTO volunteers (name, phone) VALUES (?, ?)', [name, phone]);
-      persistDb();
+
       res.json({ id: result.lastInsertRowid, name, phone });
     } catch (e) {
       res.status(409).json({ error: 'Volunteer with this phone already exists' });
@@ -261,7 +252,7 @@ async function initDb() {
     const p = phone.startsWith('+') ? phone : '+' + phone.replace(/\D/g, '');
     try {
       const r = dbRun('INSERT INTO admin_phones (phone, name) VALUES (?, ?)', [p, name || '']);
-      persistDb();
+
       res.json({ id: r.lastInsertRowid, phone: p, name: name || '' });
     } catch (e) {
       res.status(409).json({ error: 'Already exists' });
@@ -451,7 +442,7 @@ async function initDb() {
     if (!email) return res.status(400).json({ error: 'Email required' });
     try {
       const r = dbRun('INSERT INTO report_recipients (email, name) VALUES (?, ?)', [email, name || '']);
-      persistDb();
+
       res.json({ id: r.lastInsertRowid, email, name: name || '' });
     } catch (e) {
       res.status(409).json({ error: 'Already exists' });
@@ -492,7 +483,7 @@ async function initDb() {
 
     if (!volunteer) {
       dbRun('INSERT INTO volunteers (name, phone) VALUES (?, ?)', ['New Volunteer', fromClean]);
-      persistDb();
+
       volunteer = dbGet('SELECT * FROM volunteers WHERE phone = ?', [fromClean]);
       sendSmsReply(fromClean, 'Thanks for joining Catsnip volunteer alerts! Reply with your name to personalize your contact info.');
     }
@@ -507,14 +498,14 @@ async function initDb() {
         for (const vid of ids) {
           db.run('INSERT INTO deliveries (message_id, volunteer_id) VALUES (?, ?)', [messageId, vid]);
         }
-        persistDb();
+  
         const volRows = ids.map(id => dbGet('SELECT id, phone FROM volunteers WHERE id = ?', [id])).filter(Boolean);
         for (const v of volRows) {
           sendSms(v.phone, bodyTrim, messageId, v.id).catch(() => {});
         }
       }
       db.run('INSERT INTO responses (message_id, volunteer_id, body) VALUES (?, ?, ?)', [null, volunteer.id, bodyTrim]);
-      persistDb();
+
       sendSmsReply(fromClean, 'Broadcast sent to ' + ids.length + ' volunteers.');
       return res.sendStatus(200);
     }
@@ -524,14 +515,14 @@ async function initDb() {
       const newName = nameMatch ? nameMatch[1].trim() : bodyTrim;
       if (newName.length <= 50) {
         db.run('UPDATE volunteers SET name = ? WHERE id = ?', [newName, volunteer.id]);
-        persistDb();
+  
         sendSmsReply(fromClean, 'Thanks ' + newName + '! Your name has been saved. You will get texts about upcoming opportunities. Reply STOP to opt out.');
       }
     } else if (bodyTrim.toUpperCase().startsWith('NAME:')) {
       const name = bodyTrim.slice(5).trim();
       if (name && name.length <= 50) {
         db.run('UPDATE volunteers SET name = ? WHERE id = ?', [name, volunteer.id]);
-        persistDb();
+  
         sendSmsReply(fromClean, 'Name updated to ' + name + '.');
       }
     }
