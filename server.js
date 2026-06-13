@@ -24,7 +24,7 @@ function dbGet(sql, params) {
 
 function dbRun(sql, params) {
   const stmt = db.prepare(sql);
-  const info = params ? stmt.run(params) : stmt.run();
+  const info = params ? stmt.run(...params) : stmt.run();
   return { lastInsertRowid: info.lastInsertRowid, changes: info.changes };
 }
 
@@ -35,7 +35,7 @@ async function initDb() {
   if (Database) {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
-    db.run = (...args) => db.prepare(args[0]).run(args[1] || undefined);
+    db.run = (...args) => Array.isArray(args[1]) ? db.prepare(args[0]).run(...args[1]) : db.prepare(args[0]).run(args[1] || undefined);
   } else {
     const SQL = await initSqlJs();
     if (fs.existsSync(DB_PATH)) {
