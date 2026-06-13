@@ -107,9 +107,6 @@ async function initDb() {
     response_count INTEGER DEFAULT 0,
     error TEXT
   )`);
-
-  persistDb();
-
   let neonPool = null;
   if (process.env.DATABASE_URL) {
     neonPool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10000 });
@@ -239,7 +236,7 @@ async function initDb() {
 
   app.delete('/api/volunteers/:id', (req, res) => {
     db.run('UPDATE volunteers SET status = ? WHERE id = ?', ['removed', req.params.id]);
-    persistDb();
+
     res.json({ ok: true });
   });
 
@@ -262,7 +259,7 @@ async function initDb() {
 
   app.delete('/api/admin-phones/:id', (req, res) => {
     db.run('DELETE FROM admin_phones WHERE id = ?', [req.params.id]);
-    persistDb();
+
     res.json({ ok: true });
   });
 
@@ -282,7 +279,7 @@ async function initDb() {
     for (const vid of ids) {
       db.run('INSERT INTO deliveries (message_id, volunteer_id) VALUES (?, ?)', [messageId, vid]);
     }
-    persistDb();
+
 
     const volRows = ids.map(id => dbGet('SELECT id, phone FROM volunteers WHERE id = ?', [id])).filter(Boolean);
 
@@ -294,7 +291,7 @@ async function initDb() {
       if (r.status === 'fulfilled') results.sent++;
       else results.failed++;
     }
-    persistDb();
+
     res.json({ messageId, ...results });
   });
 
@@ -431,7 +428,7 @@ async function initDb() {
     }
     dbRun('INSERT INTO report_log (recipient_count, message_count, response_count, error) VALUES (?, ?, ?, ?)',
       [recipients.length, 0, 0, successCount < recipients.length ? 'partial failure' : null]);
-    persistDb();
+
   }
 
   app.get('/api/report/recipients', (req, res) => {
@@ -452,7 +449,7 @@ async function initDb() {
 
   app.delete('/api/report/recipients/:id', (req, res) => {
     db.run('DELETE FROM report_recipients WHERE id = ?', [req.params.id]);
-    persistDb();
+
     res.json({ ok: true });
   });
 
@@ -537,7 +534,7 @@ async function initDb() {
       'INSERT INTO responses (message_id, volunteer_id, body) VALUES (?, ?, ?)',
       [latestDelivery ? latestDelivery.message_id : null, volunteer.id, bodyTrim]
     );
-    persistDb();
+
 
     res.sendStatus(200);
   });
